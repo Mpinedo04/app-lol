@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LoL Champion Cup</title>
+    <link rel="preconnect" href="https://ddragon.leagueoflegends.com" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="side-panel" aria-label="Panel del torneo">
+        <div class="brand-block">
+          <p class="eyebrow">League of Legends</p>
+          <h1>Champion Cup</h1>
+          <p class="side-copy">Torneo visual de favoritos con arte oficial de Riot Data Dragon.</p>
+        </div>
+
+        <section class="controls" aria-label="Controles">
+          <label class="field">
+            <span>Participantes</span>
+            <select id="sizeSelect">
+              <option value="all" selected>Todos los campeones</option>
+              <option value="8">8 campeones</option>
+              <option value="16">16 campeones</option>
+              <option value="32">32 campeones</option>
+            </select>
+          </label>
+
+          <div class="button-row">
+            <button class="control-button primary" id="newTournament" type="button" title="Nuevo torneo">
+              <span aria-hidden="true">↻</span>
+              Nuevo
+            </button>
+            <button class="control-button" id="shareWinner" type="button" title="Compartir ganador">
+              <span aria-hidden="true">⤴</span>
+              Share
+            </button>
+          </div>
+        </section>
+
+        <section class="status-panel" aria-live="polite">
+          <p class="status-kicker" id="roundLabel">Cargando</p>
+          <h2 id="matchTitle">Preparando campeones...</h2>
+          <p id="matchMeta">Conectando con Data Dragon.</p>
+        </section>
+
+        <section class="leaderboard" aria-label="Top 10 del torneo">
+          <div class="section-heading">
+            <span>Top 10 torneo</span>
+            <button class="icon-button" id="clearStats" type="button" title="Centrar bracket" aria-label="Centrar bracket">⌖</button>
+          </div>
+          <ol id="leaderboardList"></ol>
+        </section>
+
+        <p class="credit" id="versionNote">Data Dragon</p>
+      </aside>
+
+      <section class="arena" aria-label="Bracket circular">
+        <div class="bracket-board">
+          <svg class="bracket-lines" viewBox="0 0 1000 1000" aria-hidden="true">
+            <g id="lineLayer"></g>
+          </svg>
+          <div class="ring-label top">Ronda exterior</div>
+          <div class="ring-label bottom">Final</div>
+          <div class="orbit" id="orbit"></div>
+          <div class="center-crown" id="centerCrown">
+            <span>Final</span>
+          </div>
+        </div>
+
+        <div class="duel-panel" id="duelPanel">
+          <button class="champion-choice" id="leftChoice" type="button"></button>
+          <div class="versus-mark" aria-hidden="true">VS</div>
+          <button class="champion-choice" id="rightChoice" type="button"></button>
+        </div>
+      </section>
+    </main>
+
+    <template id="choiceTemplate">
+      <span class="choice-art"></span>
+      <span class="choice-shade"></span>
+      <span class="choice-content">
+        <span class="choice-seed"></span>
+        <strong class="choice-name"></strong>
+        <span class="choice-title"></span>
+      </span>
+    </template>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
