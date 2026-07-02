@@ -1,3 +1,16 @@
+const tagMeta = {
+  all: { label: "Todos", color: "#c9aa71" },
+  Assassin: { label: "Asesinos", color: "#e65f6d" },
+  Fighter: { label: "Luchadores", color: "#d99152" },
+  Mage: { label: "Magos", color: "#8b8cf6" },
+  Marksman: { label: "Tiradores", color: "#63d4c4" },
+  Support: { label: "Apoyos", color: "#78c66a" },
+  Tank: { label: "Tanques", color: "#6aa6d8" },
+};
+
+const tagOrder = ["Assassin", "Fighter", "Mage", "Marksman", "Support", "Tank"];
+const historyKey = "lol-champion-cup-history-v1";
+
 const state = {
   version: "16.13.1",
   champions: [],
@@ -6,9 +19,15 @@ const state = {
   currentMatch: 0,
   selectedId: null,
   tournamentSize: "all",
+  activeTag: "all",
+  activeChart: "top10",
   eliminatedIds: new Set(),
   eliminationLog: [],
+  choiceLog: [],
+  currentEntrants: [],
   finished: false,
+  tournamentSaved: false,
+  viewingHistoryEntry: null,
   view: {
     x: 0,
     y: 0,
@@ -25,15 +44,27 @@ const state = {
 const els = {
   arena: document.querySelector(".arena"),
   bracketBoard: document.querySelector(".bracket-board"),
+  duelPanel: document.querySelector("#duelPanel"),
+  finalPanel: document.querySelector("#finalPanel"),
+  finalHero: document.querySelector("#finalHero"),
+  finalWinner: document.querySelector("#finalWinner"),
+  finalMeta: document.querySelector("#finalMeta"),
+  finalTopList: document.querySelector("#finalTopList"),
+  typeChart: document.querySelector("#typeChart"),
+  typeFilter: document.querySelector("#typeFilter"),
   sizeSelect: document.querySelector("#sizeSelect"),
   newTournament: document.querySelector("#newTournament"),
+  summaryNewTournament: document.querySelector("#summaryNewTournament"),
   shareWinner: document.querySelector("#shareWinner"),
+  copySummary: document.querySelector("#copySummary"),
+  showHistory: document.querySelector("#showHistory"),
   clearStats: document.querySelector("#clearStats"),
   roundLabel: document.querySelector("#roundLabel"),
   matchTitle: document.querySelector("#matchTitle"),
   matchMeta: document.querySelector("#matchMeta"),
   versionNote: document.querySelector("#versionNote"),
   leaderboardList: document.querySelector("#leaderboardList"),
+  historyList: document.querySelector("#historyList"),
   lineLayer: document.querySelector("#lineLayer"),
   orbit: document.querySelector("#orbit"),
   centerCrown: document.querySelector("#centerCrown"),
@@ -43,24 +74,23 @@ const els = {
 };
 
 const fallbackChampions = [
-  ["Aatrox", "Aatrox", "la Espada Darkin"],
-  ["Ahri", "Ahri", "la Vastaya de Nueve Colas"],
-  ["Akali", "Akali", "la Asesina Sigilosa"],
-  ["Ashe", "Ashe", "la Arquera de Hielo"],
-  ["Darius", "Darius", "la Mano de Noxus"],
-  ["Ekko", "Ekko", "el Chico que Fragmentó el Tiempo"],
-  ["Jinx", "Jinx", "la Bala Perdida"],
-  ["Kaisa", "Kai'Sa", "la Hija del Vacío"],
-  ["Lux", "Lux", "la Dama Luminosa"],
-  ["Sett", "Sett", "el Jefe"],
-  ["Yasuo", "Yasuo", "el Imperdonable"],
-  ["Zed", "Zed", "el Maestro de las Sombras"],
-].map(([id, name, title]) => ({ id, name, title, tags: [], image: { full: `${id}.png` } }));
-
-const statKey = "lol-champion-cup-stats";
+  ["Aatrox", "Aatrox", "la Espada Darkin", ["Fighter", "Tank"]],
+  ["Ahri", "Ahri", "la Vastaya de Nueve Colas", ["Mage", "Assassin"]],
+  ["Akali", "Akali", "la Asesina Sigilosa", ["Assassin"]],
+  ["Ashe", "Ashe", "la Arquera de Hielo", ["Marksman", "Support"]],
+  ["Darius", "Darius", "la Mano de Noxus", ["Fighter", "Tank"]],
+  ["Ekko", "Ekko", "el Chico que Fragmento el Tiempo", ["Assassin", "Fighter"]],
+  ["Jinx", "Jinx", "la Bala Perdida", ["Marksman"]],
+  ["Kaisa", "Kai'Sa", "la Hija del Vacio", ["Marksman", "Assassin"]],
+  ["Lux", "Lux", "la Dama Luminosa", ["Mage", "Support"]],
+  ["Sett", "Sett", "el Jefe", ["Fighter", "Tank"]],
+  ["Yasuo", "Yasuo", "el Imperdonable", ["Fighter", "Assassin"]],
+  ["Zed", "Zed", "el Maestro de las Sombras", ["Assassin"]],
+].map(([id, name, title, tags]) => ({ id, name, title, tags, image: { full: `${id}.png` } }));
 
 async function init() {
   bindEvents();
+  renderHistory();
   renderLeaderboard();
   await loadChampions();
   startTournament();
@@ -68,13 +98,38 @@ async function init() {
 
 function bindEvents() {
   els.newTournament.addEventListener("click", startTournament);
+  els.summaryNewTournament.addEventListener("click", startTournament);
   els.sizeSelect.addEventListener("change", () => {
     state.tournamentSize = getSelectedTournamentSize();
     startTournament();
   });
+  els.typeFilter.addEventListener("click", (event) => {
+    const button = event.target.closest(".type-chip");
+    if (!button || button.disabled) return;
+    state.activeTag = button.dataset.tag;
+    updateTypeFilters();
+    updateSizeOptions();
+    startTournament();
+  });
+  document.querySelectorAll(".chart-tab").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.activeChart = button.dataset.chart;
+      updateChartTabs();
+      renderFinalSummary();
+    });
+  });
   els.leftChoice.addEventListener("click", () => pickWinner(0));
   els.rightChoice.addEventListener("click", () => pickWinner(1));
   els.shareWinner.addEventListener("click", shareResult);
+  els.copySummary.addEventListener("click", copySummary);
+  els.showHistory.addEventListener("click", () => {
+    els.historyList.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+  els.historyList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-history-id]");
+    if (!button) return;
+    showHistoryEntry(button.dataset.historyId);
+  });
   els.clearStats.addEventListener("click", resetBracketView);
   els.arena.addEventListener("wheel", zoomBracket, { passive: false });
   els.arena.addEventListener("pointerdown", startBracketDrag);
@@ -90,12 +145,14 @@ async function loadChampions() {
     const url = `https://ddragon.leagueoflegends.com/cdn/${state.version}/data/es_ES/champion.json`;
     const payload = await fetchJson(url);
     state.champions = Object.values(payload.data).sort((a, b) => a.name.localeCompare(b.name, "es"));
+    updateTypeFilters();
     updateSizeOptions();
-    els.versionNote.textContent = `${state.champions.length} campeones · Data Dragon ${state.version}`;
+    els.versionNote.textContent = `${state.champions.length} campeones - Data Dragon ${state.version}`;
   } catch (error) {
     state.champions = fallbackChampions;
+    updateTypeFilters();
     updateSizeOptions();
-    els.versionNote.textContent = `${state.champions.length} campeones · modo local`;
+    els.versionNote.textContent = `${state.champions.length} campeones - modo local`;
     showToast("No pude cargar Riot ahora mismo. He usado una lista local.");
   }
 }
@@ -107,17 +164,22 @@ async function fetchJson(url) {
 }
 
 function startTournament() {
-  if (!state.champions.length) return;
+  const pool = getFilteredChampions();
+  if (!pool.length) return;
 
+  state.viewingHistoryEntry = null;
   state.tournamentSize = getSelectedTournamentSize();
   state.currentRound = 0;
   state.currentMatch = 0;
   state.selectedId = null;
   state.eliminatedIds = new Set();
   state.eliminationLog = [];
+  state.choiceLog = [];
   state.finished = false;
+  state.tournamentSaved = false;
 
-  const entrants = shuffle([...state.champions]).slice(0, state.tournamentSize);
+  const entrants = shuffle([...pool]).slice(0, state.tournamentSize);
+  state.currentEntrants = entrants;
   state.rounds = buildRounds(entrants);
   applyByesForRound(0);
 
@@ -128,23 +190,55 @@ function startTournament() {
   render();
 }
 
+function getFilteredChampions() {
+  if (state.activeTag === "all") return state.champions;
+  return state.champions.filter((champion) => champion.tags?.includes(state.activeTag));
+}
+
+function updateTypeFilters() {
+  const counts = countTags(state.champions);
+  document.querySelectorAll(".type-chip").forEach((chip) => {
+    const tag = chip.dataset.tag;
+    const label = tagMeta[tag]?.label || tag;
+    const count = tag === "all" ? state.champions.length : counts[tag] || 0;
+    chip.textContent = `${label} (${count})`;
+    chip.classList.toggle("active", tag === state.activeTag);
+    chip.disabled = tag !== "all" && count < 2;
+  });
+}
+
+function countTags(champions) {
+  return champions.reduce((acc, champion) => {
+    getKnownTags(champion).forEach((tag) => {
+      acc[tag] = (acc[tag] || 0) + 1;
+    });
+    return acc;
+  }, {});
+}
+
 function updateSizeOptions() {
+  const available = getFilteredChampions().length;
   const allOption = els.sizeSelect.querySelector('option[value="all"]');
   if (allOption) {
-    allOption.textContent = `Todos (${state.champions.length})`;
+    const label = state.activeTag === "all" ? "Todos" : tagMeta[state.activeTag].label;
+    allOption.textContent = `${label} (${available})`;
   }
 
   [...els.sizeSelect.options].forEach((option) => {
     if (option.value !== "all") {
-      option.disabled = Number(option.value) > state.champions.length;
+      option.disabled = Number(option.value) > available;
     }
   });
+
+  const selected = els.sizeSelect.selectedOptions[0];
+  if (selected?.disabled) {
+    els.sizeSelect.value = "all";
+  }
 }
 
 function getSelectedTournamentSize() {
-  return els.sizeSelect.value === "all"
-    ? state.champions.length
-    : Math.min(Number(els.sizeSelect.value), state.champions.length);
+  const available = getFilteredChampions().length;
+  return els.sizeSelect.value === "all" ? available : Math.min(Number(els.sizeSelect.value), available);
 }
 
 function buildRounds(entrants) {
@@ -171,7 +265,7 @@ function applyByesForRound(roundIndex) {
 }
 
 function pickWinner(choiceIndex) {
-  if (state.finished || state.selectedId) return;
+  if (state.finished || state.selectedId || state.viewingHistoryEntry) return;
 
   const match = getCurrentMatch();
   const winner = match[choiceIndex];
@@ -179,6 +273,10 @@ function pickWinner(choiceIndex) {
   if (!winner) return;
 
   state.selectedId = winner.id;
+  state.choiceLog.push({
+    champion: winner,
+    roundIndex: state.currentRound,
+  });
   recordElimination(loser);
   renderDuel();
 
@@ -217,8 +315,7 @@ function advanceMatch() {
   }
 
   state.finished = true;
-  const winner = state.rounds.at(-1)[0];
-  if (winner) saveWinner(winner);
+  saveCompletedTournament();
 }
 
 function getCurrentMatch() {
@@ -237,10 +334,19 @@ function render() {
   renderDuel();
   renderCenter();
   renderLeaderboard();
+  renderHistory();
+  renderFinalSummary();
 }
 
 function renderStatus() {
   const totalRounds = state.rounds.length - 1;
+
+  if (state.viewingHistoryEntry) {
+    els.roundLabel.textContent = "Historial";
+    els.matchTitle.textContent = state.viewingHistoryEntry.winner.name;
+    els.matchMeta.textContent = formatHistoryMeta(state.viewingHistoryEntry);
+    return;
+  }
 
   if (state.finished) {
     const winner = state.rounds.at(-1)[0];
@@ -255,22 +361,25 @@ function renderStatus() {
   const matchesInRound = getMatchesInRound(state.currentRound);
   const byes = state.rounds[state.currentRound].length % 2;
   const [left, right] = getCurrentMatch();
-  els.roundLabel.textContent = `Ronda ${roundNumber} de ${totalRounds} · ${championCount} campeones`;
+  els.roundLabel.textContent = `Ronda ${roundNumber} de ${totalRounds} - ${championCount} campeones`;
   els.matchTitle.textContent = left && right ? `${left.name} vs ${right.name}` : "Preparando duelo";
   els.matchMeta.textContent = byes
-    ? `Duelo ${state.currentMatch + 1} de ${matchesInRound} · 1 pase automático`
+    ? `Duelo ${state.currentMatch + 1} de ${matchesInRound} - 1 pase automatico`
     : `Duelo ${state.currentMatch + 1} de ${matchesInRound}`;
 }
 
 function renderDuel() {
-  const winner = state.finished ? state.rounds.at(-1)[0] : null;
-  const [left, right] = state.finished ? [winner, null] : getCurrentMatch();
+  const showFinal = state.finished || state.viewingHistoryEntry;
+  els.duelPanel.classList.toggle("hidden", showFinal);
+  els.finalPanel.classList.toggle("hidden", !showFinal);
+  if (showFinal) return;
 
+  const [left, right] = getCurrentMatch();
   fillChoice(els.leftChoice, left, 0);
   fillChoice(els.rightChoice, right, 1);
 
-  els.rightChoice.style.visibility = state.finished ? "hidden" : "visible";
-  document.querySelector(".versus-mark").textContent = state.finished ? "★" : "VS";
+  els.rightChoice.style.visibility = "visible";
+  document.querySelector(".versus-mark").textContent = "VS";
 }
 
 function fillChoice(button, champion, index) {
@@ -282,11 +391,7 @@ function fillChoice(button, champion, index) {
 
   const fragment = els.template.content.cloneNode(true);
   fragment.querySelector(".choice-art").style.backgroundImage = `url("${splashUrl(champion)}")`;
-  fragment.querySelector(".choice-seed").textContent = state.finished
-    ? "Campeón"
-    : index === 0
-      ? "Elige izquierda"
-      : "Elige derecha";
+  fragment.querySelector(".choice-seed").textContent = index === 0 ? "Elige izquierda" : "Elige derecha";
   fragment.querySelector(".choice-name").textContent = champion.name;
   fragment.querySelector(".choice-title").textContent = champion.title;
   button.appendChild(fragment);
@@ -294,7 +399,7 @@ function fillChoice(button, champion, index) {
 }
 
 function renderCenter() {
-  const finalWinner = state.rounds.at(-1)?.[0];
+  const finalWinner = state.viewingHistoryEntry?.winner || state.rounds.at(-1)?.[0];
   const label = els.centerCrown.querySelector("span");
   label.textContent = finalWinner ? finalWinner.name : "Final";
 }
@@ -318,7 +423,7 @@ function renderOrbit() {
       if (!champion) node.classList.add("empty");
       if (champion && state.eliminatedIds.has(champion.id)) node.classList.add("eliminated");
       if (roundIndex > 0 && champion) node.classList.add("winner");
-      if (!state.finished && roundIndex === state.currentRound && currentSlots.includes(slotIndex)) {
+      if (!state.finished && !state.viewingHistoryEntry && roundIndex === state.currentRound && currentSlots.includes(slotIndex)) {
         node.classList.add("current");
       }
 
@@ -346,7 +451,6 @@ function renderLines() {
     const toRound = state.rounds[roundIndex + 1];
     const fromRadius = radiusForRound(roundIndex, maxRound, 500);
     const toRadius = radiusForRound(roundIndex + 1, maxRound, 500);
-
     const matchesInRound = Math.floor(fromRound.length / 2);
 
     for (let matchIndex = 0; matchIndex < matchesInRound; matchIndex += 1) {
@@ -413,40 +517,19 @@ function polarPoint(index, count, radius, center = 50) {
   };
 }
 
-function iconUrl(champion) {
-  return `https://ddragon.leagueoflegends.com/cdn/${state.version}/img/champion/${champion.image.full}`;
-}
-
-function tileUrl(champion) {
-  return `https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/${champion.id}_0.jpg`;
-}
-
-function splashUrl(champion) {
-  return `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${champion.id}_0.jpg`;
-}
-
-function saveWinner(champion) {
-  const stats = readStats();
-  const current = stats[champion.id] || { wins: 0, name: champion.name, image: champion.image.full };
-  stats[champion.id] = {
-    ...current,
-    wins: current.wins + 1,
-    name: champion.name,
-    image: champion.image.full,
-  };
-  localStorage.setItem(statKey, JSON.stringify(stats));
-}
-
 function renderLeaderboard() {
   const rows = getTournamentTop10();
+  renderTopList(els.leaderboardList, rows, "Se completa al terminar");
+}
 
-  els.leaderboardList.innerHTML = "";
+function renderTopList(container, rows, emptyText) {
+  container.innerHTML = "";
 
   if (!rows.length) {
     const empty = document.createElement("li");
     empty.className = "top-empty";
-    empty.innerHTML = "<span></span><strong>Se completa al terminar</strong>";
-    els.leaderboardList.appendChild(empty);
+    empty.innerHTML = `<span></span><strong>${emptyText}</strong>`;
+    container.appendChild(empty);
     return;
   }
 
@@ -474,21 +557,21 @@ function renderLeaderboard() {
 
     text.append(name, detail);
     li.append(rank, img, text);
-    els.leaderboardList.appendChild(li);
+    container.appendChild(li);
   });
 }
 
 function getTournamentTop10() {
-  const rows = [];
   const finalWinner = state.finished ? state.rounds.at(-1)?.[0] : null;
+  if (!finalWinner) return [];
 
-  if (!finalWinner) return rows;
-
-  rows.push({
-    place: 1,
-    champion: finalWinner,
-    detail: "Ganador",
-  });
+  const rows = [
+    {
+      place: 1,
+      champion: finalWinner,
+      detail: "Ganador",
+    },
+  ];
 
   const eliminated = [...state.eliminationLog].sort(
     (a, b) => b.roundIndex - a.roundIndex || b.order - a.order,
@@ -496,7 +579,7 @@ function getTournamentTop10() {
 
   eliminated.forEach((entry) => {
     if (rows.length >= 10) return;
-    if (finalWinner && entry.champion.id === finalWinner.id) return;
+    if (entry.champion.id === finalWinner.id) return;
 
     rows.push({
       place: rows.length + 1,
@@ -516,6 +599,289 @@ function eliminationDetail(roundIndex) {
   return `Ronda ${roundIndex + 1}`;
 }
 
+function renderFinalSummary() {
+  const summary = getVisibleSummary();
+  if (!summary) {
+    els.finalPanel.classList.add("hidden");
+    return;
+  }
+
+  els.finalPanel.classList.remove("hidden");
+  els.finalHero.style.backgroundImage = `url("${splashUrl(summary.winner)}")`;
+  els.finalWinner.textContent = summary.winner.name;
+  els.finalMeta.textContent = `${formatDate(summary.createdAt)} - ${summary.tournamentSize} campeones - ${tagLabel(summary.filterType)}`;
+  renderTopList(els.finalTopList, summary.top10, "Sin top disponible");
+  renderTypeChart(state.activeChart === "top10" ? summary.typeStatsTop10 : summary.typeStatsChoices);
+  updateChartTabs();
+}
+
+function getVisibleSummary() {
+  if (state.viewingHistoryEntry) return state.viewingHistoryEntry;
+  if (!state.finished) return null;
+
+  const winner = state.rounds.at(-1)?.[0];
+  if (!winner) return null;
+
+  const top10 = getTournamentTop10();
+  return {
+    createdAt: new Date().toISOString(),
+    dataDragonVersion: state.version,
+    filterType: state.activeTag,
+    tournamentSize: state.currentEntrants.length,
+    winner,
+    top10,
+    typeStatsTop10: calculateTop10TypeStats(top10),
+    typeStatsChoices: calculateChoiceTypeStats(state.choiceLog),
+  };
+}
+
+function renderTypeChart(stats) {
+  const total = tagOrder.reduce((sum, tag) => sum + (stats?.[tag] || 0), 0);
+  if (!total) {
+    els.typeChart.innerHTML = '<p class="chart-empty">Sin datos todavia.</p>';
+    return;
+  }
+
+  let current = -90;
+  const slices = tagOrder
+    .filter((tag) => stats[tag] > 0)
+    .map((tag) => {
+      const value = stats[tag];
+      const angle = (value / total) * 360;
+      const slice = {
+        tag,
+        value,
+        start: current,
+        end: current + angle,
+      };
+      current += angle;
+      return slice;
+    });
+
+  const paths = slices
+    .map((slice) => {
+      const largeArc = slice.end - slice.start > 180 ? 1 : 0;
+      const start = polarSvg(50, 50, 36, slice.end);
+      const end = polarSvg(50, 50, 36, slice.start);
+      return `<path d="M 50 50 L ${start.x} ${start.y} A 36 36 0 ${largeArc} 0 ${end.x} ${end.y} Z" fill="${tagMeta[slice.tag].color}"></path>`;
+    })
+    .join("");
+
+  const legend = slices
+    .map((slice) => {
+      const percent = Math.round((slice.value / total) * 100);
+      return `<li><span style="background:${tagMeta[slice.tag].color}"></span><strong>${tagMeta[slice.tag].label}</strong><em>${percent}%</em></li>`;
+    })
+    .join("");
+
+  els.typeChart.innerHTML = `
+    <svg class="pie-chart" viewBox="0 0 100 100" aria-hidden="true">
+      ${paths}
+      <circle cx="50" cy="50" r="21" fill="#111216"></circle>
+    </svg>
+    <ul class="chart-legend">${legend}</ul>
+  `;
+}
+
+function polarSvg(cx, cy, r, angle) {
+  const radians = (angle * Math.PI) / 180;
+  return {
+    x: cx + r * Math.cos(radians),
+    y: cy + r * Math.sin(radians),
+  };
+}
+
+function updateChartTabs() {
+  document.querySelectorAll(".chart-tab").forEach((button) => {
+    button.classList.toggle("active", button.dataset.chart === state.activeChart);
+  });
+}
+
+function calculateTop10TypeStats(top10) {
+  const stats = createEmptyTypeStats();
+  top10.forEach((row, index) => {
+    addChampionTags(stats, row.champion, Math.max(1, 10 - index));
+  });
+  return stats;
+}
+
+function calculateChoiceTypeStats(choices) {
+  const stats = createEmptyTypeStats();
+  choices.forEach((choice) => {
+    const champion = choice.champion || choice;
+    const roundIndex = Number.isFinite(choice.roundIndex) ? choice.roundIndex : 0;
+    addChampionTags(stats, champion, roundIndex + 1);
+  });
+  return stats;
+}
+
+function createEmptyTypeStats() {
+  return tagOrder.reduce((acc, tag) => {
+    acc[tag] = 0;
+    return acc;
+  }, {});
+}
+
+function addChampionTags(stats, champion, points) {
+  const tags = getKnownTags(champion);
+  if (!tags.length) return;
+  const split = points / tags.length;
+  tags.forEach((tag) => {
+    stats[tag] += split;
+  });
+}
+
+function getKnownTags(champion) {
+  return (champion.tags || []).filter((tag) => tagOrder.includes(tag));
+}
+
+function saveCompletedTournament() {
+  if (state.tournamentSaved) return;
+  const winner = state.rounds.at(-1)?.[0];
+  if (!winner) return;
+
+  const top10 = getTournamentTop10();
+  const entry = {
+    id: `${Date.now()}-${winner.id}`,
+    createdAt: new Date().toISOString(),
+    dataDragonVersion: state.version,
+    filterType: state.activeTag,
+    tournamentSize: state.currentEntrants.length,
+    winner: serializeChampion(winner),
+    top10: top10.map((row) => ({
+      place: row.place,
+      champion: serializeChampion(row.champion),
+      detail: row.detail,
+    })),
+    typeStatsTop10: calculateTop10TypeStats(top10),
+    typeStatsChoices: calculateChoiceTypeStats(state.choiceLog),
+  };
+
+  const history = [entry, ...readHistory()].slice(0, 25);
+  localStorage.setItem(historyKey, JSON.stringify(history));
+  state.tournamentSaved = true;
+}
+
+function serializeChampion(champion) {
+  return {
+    id: champion.id,
+    name: champion.name,
+    title: champion.title,
+    tags: champion.tags || [],
+    image: champion.image,
+  };
+}
+
+function renderHistory() {
+  const history = readHistory();
+  els.historyList.innerHTML = "";
+
+  if (!history.length) {
+    const empty = document.createElement("p");
+    empty.className = "history-empty";
+    empty.textContent = "Aun no hay torneos terminados.";
+    els.historyList.appendChild(empty);
+    return;
+  }
+
+  history.slice(0, 5).forEach((entry) => {
+    const card = document.createElement("article");
+    card.className = "history-card";
+
+    const topThree = entry.top10
+      .slice(0, 3)
+      .map((row) => row.champion.name)
+      .join(", ");
+
+    card.innerHTML = `
+      <img src="${iconUrl(entry.winner)}" alt="${entry.winner.name}" loading="lazy">
+      <span>
+        <strong>${entry.winner.name}</strong>
+        <small>${formatDate(entry.createdAt)} - ${tagLabel(entry.filterType)}</small>
+        <em>${topThree}</em>
+      </span>
+      <button type="button" data-history-id="${entry.id}">Abrir</button>
+    `;
+    els.historyList.appendChild(card);
+  });
+}
+
+function readHistory() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(historyKey));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function showHistoryEntry(id) {
+  const entry = readHistory().find((item) => item.id === id);
+  if (!entry) return;
+  state.viewingHistoryEntry = entry;
+  state.activeChart = "top10";
+  renderStatus();
+  renderDuel();
+  renderCenter();
+  renderFinalSummary();
+}
+
+function formatHistoryMeta(entry) {
+  return `${formatDate(entry.createdAt)} - ${entry.tournamentSize} campeones - ${tagLabel(entry.filterType)}`;
+}
+
+function formatDate(value) {
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function tagLabel(tag) {
+  return tagMeta[tag]?.label || "Todos";
+}
+
+async function shareResult() {
+  const text = buildSummaryText();
+  if (navigator.share && (state.finished || state.viewingHistoryEntry)) {
+    await navigator.share({ title: "LoL Champion Cup", text }).catch(() => undefined);
+    return;
+  }
+  await writeClipboard(text);
+}
+
+async function copySummary() {
+  await writeClipboard(buildSummaryText());
+}
+
+async function writeClipboard(text) {
+  await navigator.clipboard?.writeText(text).catch(() => undefined);
+  showToast("Resumen copiado.");
+}
+
+function buildSummaryText() {
+  const summary = getVisibleSummary();
+  if (!summary) return "Estoy jugando Champion Cup de League of Legends.";
+
+  const topLine = summary.top10
+    .slice(0, 10)
+    .map((row) => `${row.place}. ${row.champion.name}`)
+    .join(" | ");
+  const stats = summary.typeStatsTop10;
+  const favoriteType = tagOrder
+    .map((tag) => ({ tag, value: stats[tag] || 0 }))
+    .sort((a, b) => b.value - a.value)[0]?.tag;
+
+  return [
+    `Mi campeon favorito en Champion Cup es ${summary.winner.name}.`,
+    `Filtro: ${tagLabel(summary.filterType)} - ${summary.tournamentSize} campeones.`,
+    `Tipo favorito: ${tagLabel(favoriteType)}.`,
+    `Top 10: ${topLine}`,
+  ].join("\n");
+}
+
 function resetBracketView(showMessage = true) {
   const isMega = els.bracketBoard.classList.contains("mega");
   const visibleWidth = els.arena.clientWidth || window.innerWidth;
@@ -529,7 +895,7 @@ function resetBracketView(showMessage = true) {
 }
 
 function zoomBracket(event) {
-  if (event.target.closest(".duel-panel")) return;
+  if (event.target.closest(".duel-panel, .final-panel")) return;
   event.preventDefault();
 
   const oldScale = state.view.scale;
@@ -547,7 +913,7 @@ function zoomBracket(event) {
 }
 
 function startBracketDrag(event) {
-  if (event.button !== 0 || event.target.closest(".duel-panel, button, select")) return;
+  if (event.button !== 0 || event.target.closest(".duel-panel, .final-panel, button, select")) return;
 
   state.view.dragging = true;
   state.view.pointerId = event.pointerId;
@@ -584,31 +950,16 @@ function updateBoardTransform() {
   els.bracketBoard.style.setProperty("--zoom", state.view.scale);
 }
 
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
+function iconUrl(champion) {
+  return `https://ddragon.leagueoflegends.com/cdn/${state.version}/img/champion/${champion.image.full}`;
 }
 
-function readStats() {
-  try {
-    return JSON.parse(localStorage.getItem(statKey)) || {};
-  } catch {
-    return {};
-  }
+function tileUrl(champion) {
+  return `https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/${champion.id}_0.jpg`;
 }
 
-async function shareResult() {
-  const winner = state.rounds.at(-1)?.[0];
-  const text = winner
-    ? `Mi campeón favorito en Champion Cup es ${winner.name}.`
-    : "Estoy jugando Champion Cup de League of Legends.";
-
-  if (navigator.share) {
-    await navigator.share({ title: "LoL Champion Cup", text }).catch(() => undefined);
-    return;
-  }
-
-  await navigator.clipboard?.writeText(text).catch(() => undefined);
-  showToast("Resultado copiado.");
+function splashUrl(champion) {
+  return `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${champion.id}_0.jpg`;
 }
 
 function showToast(message) {
@@ -618,6 +969,10 @@ function showToast(message) {
   toast.textContent = message;
   document.body.appendChild(toast);
   window.setTimeout(() => toast.remove(), 2300);
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function shuffle(items) {

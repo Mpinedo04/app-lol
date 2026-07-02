@@ -27,6 +27,19 @@
             </select>
           </label>
 
+          <div class="field">
+            <span>Tipo de campeon</span>
+            <div class="type-filter" id="typeFilter" role="group" aria-label="Filtrar por tipo de campeon">
+              <button class="type-chip active" type="button" data-tag="all">Todos</button>
+              <button class="type-chip" type="button" data-tag="Assassin">Asesinos</button>
+              <button class="type-chip" type="button" data-tag="Fighter">Luchadores</button>
+              <button class="type-chip" type="button" data-tag="Mage">Magos</button>
+              <button class="type-chip" type="button" data-tag="Marksman">Tiradores</button>
+              <button class="type-chip" type="button" data-tag="Support">Apoyos</button>
+              <button class="type-chip" type="button" data-tag="Tank">Tanques</button>
+            </div>
+          </div>
+
           <div class="button-row">
             <button class="control-button primary" id="newTournament" type="button" title="Nuevo torneo">
               <span aria-hidden="true">↻</span>
@@ -53,6 +66,13 @@
           <ol id="leaderboardList"></ol>
         </section>
 
+        <section class="history-panel" aria-label="Historial de torneos">
+          <div class="section-heading">
+            <span>Historial</span>
+          </div>
+          <div id="historyList"></div>
+        </section>
+
         <p class="credit" id="versionNote">Data Dragon</p>
       </aside>
 
@@ -74,6 +94,42 @@
           <div class="versus-mark" aria-hidden="true">VS</div>
           <button class="champion-choice" id="rightChoice" type="button"></button>
         </div>
+
+        <section class="final-panel hidden" id="finalPanel" aria-label="Resumen final">
+          <div class="final-hero" id="finalHero">
+            <div class="final-copy">
+              <span class="choice-seed">Resultado final</span>
+              <h2 id="finalWinner">Campeon</h2>
+              <p id="finalMeta">Top 10 guardado en historial.</p>
+            </div>
+          </div>
+
+          <div class="final-grid">
+            <section class="final-card">
+              <div class="section-heading">
+                <span>Top 10</span>
+              </div>
+              <ol class="final-top-list" id="finalTopList"></ol>
+            </section>
+
+            <section class="final-card">
+              <div class="section-heading">
+                <span>Tipos favoritos</span>
+                <div class="chart-toggle" role="group" aria-label="Cambiar grafica">
+                  <button class="chart-tab active" type="button" data-chart="top10">Top 10</button>
+                  <button class="chart-tab" type="button" data-chart="choices">Elecciones</button>
+                </div>
+              </div>
+              <div class="type-chart" id="typeChart"></div>
+            </section>
+          </div>
+
+          <div class="final-actions">
+            <button class="control-button primary" id="summaryNewTournament" type="button">Nuevo torneo</button>
+            <button class="control-button" id="copySummary" type="button">Copiar resumen</button>
+            <button class="control-button" id="showHistory" type="button">Ver historial</button>
+          </div>
+        </section>
       </section>
     </main>
 

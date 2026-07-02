@@ -100,7 +100,8 @@ h1 {
 
 .controls,
 .status-panel,
-.leaderboard {
+.leaderboard,
+.history-panel {
   display: grid;
   gap: 14px;
 }
@@ -133,6 +134,38 @@ select {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.type-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.type-chip,
+.chart-tab {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.type-chip:hover,
+.chart-tab:hover,
+.type-chip.active,
+.chart-tab.active {
+  border-color: rgba(201, 170, 113, 0.7);
+  background: rgba(201, 170, 113, 0.14);
+  color: var(--text);
+}
+
+.type-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
 }
 
 .control-button {
@@ -200,7 +233,8 @@ select {
   line-height: 1;
 }
 
-#leaderboardList {
+#leaderboardList,
+.final-top-list {
   min-height: 120px;
   margin: 0;
   padding: 0;
@@ -209,7 +243,8 @@ select {
   list-style: none;
 }
 
-#leaderboardList li {
+#leaderboardList li,
+.final-top-list li {
   min-height: 38px;
   display: grid;
   grid-template-columns: 24px 30px 1fr;
@@ -218,7 +253,8 @@ select {
   color: var(--muted);
 }
 
-#leaderboardList img {
+#leaderboardList img,
+.final-top-list img {
   width: 30px;
   height: 30px;
   border-radius: 50%;
@@ -248,7 +284,8 @@ select {
   gap: 2px;
 }
 
-#leaderboardList strong {
+#leaderboardList strong,
+.final-top-list strong {
   color: var(--text);
   overflow: hidden;
   font-size: 0.9rem;
@@ -256,13 +293,80 @@ select {
   white-space: nowrap;
 }
 
-#leaderboardList small {
+#leaderboardList small,
+.final-top-list small {
   overflow: hidden;
   color: rgba(168, 172, 184, 0.8);
   font-size: 0.7rem;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+#historyList {
+  display: grid;
+  gap: 10px;
+}
+
+.history-empty {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.history-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.history-card img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.history-card span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.history-card strong,
+.history-card small,
+.history-card em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-card strong {
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.history-card small,
+.history-card em {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-style: normal;
+}
+
+.history-card button {
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgba(201, 170, 113, 0.36);
+  border-radius: 8px;
+  background: rgba(201, 170, 113, 0.1);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 
 .credit {
@@ -478,6 +582,10 @@ select {
   user-select: text;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .champion-choice {
   position: relative;
   min-height: 210px;
@@ -578,6 +686,151 @@ select {
   box-shadow: var(--shadow);
 }
 
+.final-panel {
+  position: absolute;
+  inset: auto 40px 36px 40px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.78fr) minmax(500px, 1.42fr);
+  gap: 16px;
+  pointer-events: auto;
+  user-select: text;
+}
+
+.final-hero,
+.final-card {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(17, 18, 22, 0.88);
+  box-shadow: var(--shadow);
+}
+
+.final-hero {
+  min-height: 330px;
+  display: grid;
+  align-items: end;
+  background-position: center;
+  background-size: cover;
+  isolation: isolate;
+  position: relative;
+}
+
+.final-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, transparent 18%, rgba(8, 9, 12, 0.15) 46%, rgba(8, 9, 12, 0.95) 100%),
+    linear-gradient(90deg, rgba(8, 9, 12, 0.72), transparent 65%);
+}
+
+.final-copy {
+  display: grid;
+  gap: 8px;
+  padding: 20px;
+}
+
+.final-copy h2 {
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 0.95;
+}
+
+.final-copy p {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.final-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(180px, 0.72fr) minmax(280px, 1.28fr);
+  gap: 16px;
+}
+
+.final-card {
+  min-height: 330px;
+  padding: 16px;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.chart-toggle {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.chart-tab {
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 0.68rem;
+}
+
+.type-chart {
+  min-height: 240px;
+  display: grid;
+  grid-template-columns: minmax(110px, 0.72fr) minmax(150px, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+.pie-chart {
+  width: 100%;
+  max-width: 210px;
+  justify-self: center;
+  filter: drop-shadow(0 20px 32px rgba(0, 0, 0, 0.32));
+}
+
+.chart-legend {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+.chart-legend li {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.chart-legend span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.chart-legend strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-legend em {
+  font-style: normal;
+  font-weight: 900;
+}
+
+.chart-empty {
+  grid-column: 1 / -1;
+  color: var(--muted);
+}
+
+.final-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .toast {
   position: fixed;
   right: 24px;
@@ -615,6 +868,8 @@ select {
   }
 
   .arena {
+    display: flex;
+    flex-direction: column;
     min-height: 740px;
     padding: 20px;
     align-items: start;
@@ -644,6 +899,25 @@ select {
     margin-top: -18px;
     grid-template-columns: 1fr;
     gap: 10px;
+  }
+
+  .final-panel {
+    position: relative;
+    inset: auto;
+    width: min(100%, 680px);
+    max-width: calc(100vw - 40px);
+    grid-template-columns: 1fr;
+    justify-self: center;
+    margin-top: -18px;
+    transform: none;
+  }
+
+  .final-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .type-chart {
+    grid-template-columns: minmax(120px, 0.75fr) 1fr;
   }
 
   .versus-mark {
@@ -682,6 +956,15 @@ select {
 
   .champion-choice {
     min-height: 168px;
+  }
+
+  .final-actions,
+  .type-chart {
+    grid-template-columns: 1fr;
+  }
+
+  .final-hero {
+    min-height: 240px;
   }
 }
 
