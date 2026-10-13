@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111216" />
     <title>LoL Champion Cup</title>
-    <link rel="preconnect" href="https://ddragon.leagueoflegends.com" />
+    <link rel="preconnect" href="https://ddragon.leagueoflegends.com" crossorigin />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -24,12 +25,13 @@
               <option value="8">8 campeones</option>
               <option value="16">16 campeones</option>
               <option value="32">32 campeones</option>
+              <option value="64">64 campeones</option>
             </select>
           </label>
 
           <div class="field">
-            <span>Tipo de campeon</span>
-            <div class="type-filter" id="typeFilter" role="group" aria-label="Filtrar por tipo de campeon">
+            <span>Tipo de campeón</span>
+            <div class="type-filter" id="typeFilter" role="group" aria-label="Filtrar por tipo de campeón">
               <button class="type-chip active" type="button" data-tag="all">Todos</button>
               <button class="type-chip" type="button" data-tag="Assassin">Asesinos</button>
               <button class="type-chip" type="button" data-tag="Fighter">Luchadores</button>
@@ -45,9 +47,13 @@
               <span aria-hidden="true">↻</span>
               Nuevo
             </button>
-            <button class="control-button" id="shareWinner" type="button" title="Compartir ganador">
+            <button class="control-button" id="undoButton" type="button" title="Deshacer (Ctrl+Z)" disabled>
+              <span aria-hidden="true">↶</span>
+              Deshacer
+            </button>
+            <button class="control-button" id="shareWinner" type="button" title="Compartir resultado">
               <span aria-hidden="true">⤴</span>
-              Share
+              Compartir
             </button>
           </div>
         </section>
@@ -56,12 +62,16 @@
           <p class="status-kicker" id="roundLabel">Cargando</p>
           <h2 id="matchTitle">Preparando campeones...</h2>
           <p id="matchMeta">Conectando con Data Dragon.</p>
+          <div class="progress-row">
+            <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+            <span id="progressText"></span>
+          </div>
+          <p class="kbd-hint"><kbd>←</kbd> <kbd>→</kbd> para elegir · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshace</p>
         </section>
 
         <section class="leaderboard" aria-label="Top 10 del torneo">
           <div class="section-heading">
             <span>Top 10 torneo</span>
-            <button class="icon-button" id="clearStats" type="button" title="Centrar bracket" aria-label="Centrar bracket">⌖</button>
           </div>
           <ol id="leaderboardList"></ol>
         </section>
@@ -76,30 +86,32 @@
         <p class="credit" id="versionNote">Data Dragon</p>
       </aside>
 
-      <section class="arena" aria-label="Bracket circular">
-        <div class="bracket-board">
-          <svg class="bracket-lines" viewBox="0 0 1000 1000" aria-hidden="true">
-            <g id="lineLayer"></g>
-          </svg>
-          <div class="ring-label top">Ronda exterior</div>
-          <div class="ring-label bottom">Final</div>
-          <div class="orbit" id="orbit"></div>
-          <div class="center-crown" id="centerCrown">
-            <span>Final</span>
+      <section class="arena" aria-label="Torneo">
+        <div class="bracket-viewport" id="bracketViewport" aria-label="Bracket circular">
+          <div class="bracket-stage" id="bracketStage">
+            <svg class="bracket-lines" id="bracketLines" viewBox="0 0 1000 1000" aria-hidden="true">
+              <g id="lineLayer"></g>
+            </svg>
+            <div class="orbit" id="orbit"></div>
+          </div>
+          <div class="bracket-tools">
+            <button class="tool-button" id="zoomIn" type="button" title="Acercar" aria-label="Acercar">+</button>
+            <button class="tool-button" id="zoomOut" type="button" title="Alejar" aria-label="Alejar">−</button>
+            <button class="tool-button" id="centerBracket" type="button" title="Centrar bracket" aria-label="Centrar bracket">⌖</button>
           </div>
         </div>
 
         <div class="duel-panel" id="duelPanel">
-          <button class="champion-choice" id="leftChoice" type="button"></button>
+          <button class="champion-choice is-empty" id="leftChoice" type="button" disabled></button>
           <div class="versus-mark" aria-hidden="true">VS</div>
-          <button class="champion-choice" id="rightChoice" type="button"></button>
+          <button class="champion-choice is-empty" id="rightChoice" type="button" disabled></button>
         </div>
 
         <section class="final-panel hidden" id="finalPanel" aria-label="Resumen final">
           <div class="final-hero" id="finalHero">
             <div class="final-copy">
               <span class="choice-seed">Resultado final</span>
-              <h2 id="finalWinner">Campeon</h2>
+              <h2 id="finalWinner">Campeón</h2>
               <p id="finalMeta">Top 10 guardado en historial.</p>
             </div>
           </div>
@@ -115,7 +127,7 @@
             <section class="final-card">
               <div class="section-heading">
                 <span>Tipos favoritos</span>
-                <div class="chart-toggle" role="group" aria-label="Cambiar grafica">
+                <div class="chart-toggle" role="group" aria-label="Cambiar gráfica">
                   <button class="chart-tab active" type="button" data-chart="top10">Top 10</button>
                   <button class="chart-tab" type="button" data-chart="choices">Elecciones</button>
                 </div>
@@ -127,19 +139,20 @@
           <div class="final-actions">
             <button class="control-button primary" id="summaryNewTournament" type="button">Nuevo torneo</button>
             <button class="control-button" id="copySummary" type="button">Copiar resumen</button>
-            <button class="control-button" id="showHistory" type="button">Ver historial</button>
+            <button class="control-button" id="finalSecondary" type="button">Ver historial</button>
           </div>
         </section>
       </section>
     </main>
 
     <template id="choiceTemplate">
-      <span class="choice-art"></span>
+      <img class="choice-art is-loading" alt="" decoding="async" draggable="false" />
       <span class="choice-shade"></span>
+      <kbd class="choice-key"></kbd>
       <span class="choice-content">
-        <span class="choice-seed"></span>
         <strong class="choice-name"></strong>
         <span class="choice-title"></span>
+        <span class="choice-tags"></span>
       </span>
     </template>
 
