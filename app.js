@@ -822,6 +822,15 @@ function buildBracket() {
   const orbitFragment = document.createDocumentFragment();
 
   for (let r = 0; r < maxRound; r += 1) {
+    const ring = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    ring.setAttribute("cx", boardSize / 2);
+    ring.setAttribute("cy", boardSize / 2);
+    ring.setAttribute("r", radiusForRound(r, maxRound, boardSize / 2).toFixed(1));
+    ring.setAttribute("class", "ring-guide");
+    lineFragment.appendChild(ring);
+  }
+
+  for (let r = 0; r < maxRound; r += 1) {
     for (let slot = 0; slot < rounds[r].length; slot += 1) {
       if (r === 0 && isByeSlot(slot)) continue;
       const from = positions[r][slot];
